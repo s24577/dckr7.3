@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  flask-app:
+    build:
+      context: .
+      dockerfile: Dockerfile-flask
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flask.rule=Host(`flaskapp.example.com`)"
+      - "traefik.http.services.flask.loadbalancer.server.port=5000"
+    depends_on:
+      - db
+    networks:
+      - app_net
+
+  express-app:
+    build:
+      context: .
+      dockerfile: Dockerfile-express
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.express.rule=Host(`expressapp.example.com`)"
+      - "traefik.http.services.express.loadbalancer.server.port=3000"
+    depends_on:
+      - db
+    networks:
+      - app_net
+
+  db:
+    image: "sqlite:latest"
+    container_name: sqlite-db
+    volumes:
+      - ./sqlite:/data
+    networks:
+      - app_net
+
+  traefik:
+    image: "traefik:v2.5"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--accesslog.filepath=access.log"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+    networks:
+      - app_net
+
+networks:
+  app_net:
